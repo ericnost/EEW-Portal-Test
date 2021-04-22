@@ -14,17 +14,19 @@
 	<script
 	  src="https://code.jquery.com/jquery-3.5.1.min.js"
 	  integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
-	  crossorigin="anonymous"></script>
-	 <script type="text/javascript" src="GetSheetDone.js"></script>
+	  crossorigin="anonymous">  	
+	</script>
+	<script type="text/javascript" src="GetSheetDone.js"></script>
+	<script src='//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js'></script>
+
 </head>
 <body>
 
-
-
 <div id="mapid" style="width: 1200px; height: 800px;"></div>
+
 <script>
 
-	var mymap = L.map('mapid').setView([41, -100], 3);
+	var map = L.map('mapid').setView([41, -100], 3);
 
 	//Basemap
 	var base = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}{r}.{ext}', {
@@ -33,116 +35,257 @@
 		minZoom: 3,
 		maxZoom: 20,
 		ext: 'png'
-	}).addTo(mymap)
+	}).addTo(map)
 
-	
-
+	//STATEFP -> STATE ABBREVIATION/NAME LOOKUP
+	fipsLookup={
+	    "Alabama": "01",
+	    "Alaska": "02",
+	    "Arizona": "04",
+	    "Arkansas": "05",
+	    "California": "06",
+	    "Colorado": "08",
+	    "Connecticut": "09",
+	    "Delaware": 10,
+	    "Florida": 12,
+	    "Georgia": 13,
+	    "Hawaii": 15,
+	    "Idaho": 16,
+	    "Illinois": 17,
+	    "Indiana": 18,
+	    "Iowa": 19,
+	    "Kansas": 20,
+	    "Kentucky": 21,
+	    "Louisiana": 22,
+	    "Maine": 23,
+	    "Maryland": 24,
+	    "Massachusetts": 25,
+	    "Michigan": 26,
+	    "Minnesota": 27,
+	    "Mississippi": 28,
+	    "Missouri": 29,
+	    "Montana": 30,
+	    "Nebraska": 31,
+	    "Nevada": 32,
+	    "New Hampshire": 33,
+	    "New Jersey": 34,
+	    "New Mexico": 35,
+	    "New York": 36,
+	    "North Carolina": 37,
+	    "North Dakota": 38,
+	    "Ohio": 39,
+	    "Oklahoma": 40,
+	    "Oregon": 41,
+	    "Pennsylvania": 42,
+	    "Rhode Island": 44,
+	    "South Carolina": 45,
+	    "South Dakota": 46,
+	    "Tennessee": 47,
+	    "Texas": 48,
+	    "Utah": 49,
+	    "Vermont": 50,
+	    "Virginia": 51,
+	    "Washington": 53,
+	    "West Virginia": 54,
+	    "Wisconsin": 55,
+	    "Wyoming": 56,
+	    "American Samoa": 60,
+	    "Guam": 66,
+	    "Northern Mariana Islands": 69,
+	    "Puerto Rico": 72,
+	    "Virgin Islands": 78
+  	}
+	//Load Map Data
     //States
-    var states = L.geoJson(null, {
-	    style: function(feature) {
-	        return {
-	            color: "#569E8D",
-	            weight: 2,
-	            fillColor: feature.colour, //vary based on if there are results...
-	            fillOpacity: 1
-	        };
-	    },
-	    onEachFeature: function (feature, layer) {
-		    layer.bindPopup('<h1>'+feature.properties.NAME+'</h1><p>'+feature.url+'</p>');
-		  }
-	}).addTo(mymap)
-
-    
-
-    //CDs
-    var cds = L.geoJson(null, {
+	var states = L.geoJson(null, {
 	    style: function(feature) {
 	        return {
 	            color: "black",
-	            fillColor: feature.colour,
+	            fillColor: "blue", //default
 	            fillOpacity:1,
 	            weight: .5,
 	            opacity: 1
 	        };
 	    },
 	    onEachFeature: function (feature, layer) {
-		    layer.bindPopup('<h1>'+feature.properties.CD113FP+'</h1>'+feature.url+'</p>');
+		    var str = feature.properties.STUSPS
+    		var location = Object.keys(geosList.states).indexOf(str) // is this CD in our list of completed forms and if so where?
+    		if (location >= 0) {
+			    feature.colour = "#70b9a9"
+			    feature.url = geosList.states[Object.keys(geosList.states)[location]] //need to allow for multiple...
+			} else {
+				feature.colour = "#e4f9f6"
+				feature.url ="No report submitted yet!"
+			}
+			layer.bindPopup('<h1>'+feature.properties.NAME+'</h1>'+feature.url+'</p>');
+			layer.setStyle({"fillColor": feature.colour}) // Update colour
+		  }
+	}).addTo(map)
+
+
+    //CDs
+    var cds = L.geoJson(null, {
+	    style: function(feature) {
+	        return {
+	            color: "black",
+	            fillColor: "blue", //default
+	            fillOpacity:1,
+	            weight: .5,
+	            opacity: 1
+	        };
+	    },
+	    onEachFeature: function (feature, layer) {
+		    var str = feature.properties.GEOID // example 5600 where 56 = STATEFPS and 00 = CD113FP
+    		var location = Object.keys(geosList.cds).indexOf(str) // is this CD in our list of completed forms and if so where?
+    		if (location >= 0) {
+			    feature.colour = "#70b9a9"
+			    feature.url = geosList.cds[Object.keys(geosList.cds)[location]] //need to allow for multiple...
+			} else {
+				feature.colour = "#e4f9f6"
+				feature.url ="No report submitted yet!"
+			}
+			layer.bindPopup('<h1>'+feature.properties.CD113FP+'</h1>'+feature.url+'</p>');
+			layer.setStyle({"fillColor": feature.colour}) // Update colour
 		  }
 	})
 
+	//Counties
+    var counties = L.geoJson(null, {
+	    style: function(feature) {
+	        return {
+	            color: "black",
+	            fillColor: "blue", //default
+	            fillOpacity:1,
+	            weight: .5,
+	            opacity: 1
+	        };
+	    },
+	    onEachFeature: function (feature, layer) {
+		    var str = feature.properties.STATEFP+"-"+feature.properties.NAME
+		    //console.log(str)
+		    //match to  = STATEFP-Name e.g. 17-Cedar
+		    //need some combination of STATEFP and COUNTY NAME TO IDENTIFY CORRECT COUNTIES
+    		var location = Object.keys(geosList.counties).indexOf(str) // is this CD in our list of completed forms and if so where?
+    		if (location >= 0) {
+			    feature.colour = "#70b9a9"
+			    feature.url = geosList.counties[Object.keys(geosList.counties)[location]] //need to allow for multiple...
+			} else {
+				feature.colour = "#e4f9f6"
+				feature.url ="No report submitted yet!"
+			}
+			layer.bindPopup('<h1>'+feature.properties.NAME+'</h1>'+feature.url+'</p>');
+			layer.setStyle({"fillColor": feature.colour}) // Update colour
+		  }
+	})
+
+	//HUC 10 watersheds
+	var hucs = L.geoJson(null, {
+	    style: function(feature) {
+	        return {
+	            color: "black",
+	            fillColor: "blue", //default
+	            fillOpacity:1,
+	            weight: .1, 
+	            opacity: 1
+	        };
+	    },
+	    onEachFeature: function (feature, layer) {
+		    var str = feature.properties.huc10
+    		var location = Object.keys(geosList.hucs).indexOf(str) // is this CD in our list of completed forms and if so where?
+    		if (location >= 0) {
+			    feature.colour = "#70b9a9"
+			    feature.url = geosList.hucs[Object.keys(geosList.hucs)[location]] //need to allow for multiple...
+			} else {
+				feature.colour = "#e4f9f6"
+				feature.url ="No report submitted yet!"
+			}
+			layer.bindPopup('<h1>'+feature.properties.name+'</h1>'+feature.url+'</p>');
+			layer.setStyle({"fillColor": feature.colour}) // Update colour
+		  }
+	})
+
+	//Zip codes
+    var zips = L.geoJson(null, {
+	    style: function(feature) {
+	        return {
+	            color: "black",
+	            fillColor: "blue", //default
+	            fillOpacity:1,
+	            weight: .1, 
+	            opacity: 1
+	        };
+	    },
+	    onEachFeature: function (feature, layer) {
+		    var str = feature.properties.ZCTA5CE10
+		    //need some combination of STATEFP and COUNTY NAME TO IDENTIFY CORRECT COUNTIES
+    		var location = Object.keys(geosList.zips).indexOf(str) // is this CD in our list of completed forms and if so where?
+    		if (location >= 0) {
+			    feature.colour = "#70b9a9"
+			    feature.url = geosList.zips[Object.keys(geosList.zips)[location]] //need to allow for multiple...
+			} else {
+				feature.colour = "#e4f9f6"
+				feature.url ="No report submitted yet!"
+			}
+			layer.bindPopup('<h1>'+feature.properties.ZCTA5CE10+'</h1>'+feature.url+'</p>');
+			layer.setStyle({"fillColor": feature.colour}) // Update colour
+		  }
+	})
+    
+    // Load Google Form Results
     var gFormData;
 	GetSheetDone.labeledCols('19QH-lCBJUUqmtzgP71oYA3_mE8ITvuFWCyg72js0sjM', 1).then((data) => {
-		    console.log('Data');
-		    console.log(data);
-		    gFormData=data
-		    geosList = {"states":{},"cds":{}}
-		    	gFormData.data.forEach(function(d){
-		    		console.log(d)
-		    		geosList.states[d.whichstate] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Notebook</a>"
-		    		geosList.cds[d.whichdistrict] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Notebook</a>"
-		    	
-	    		})
-	    	console.log(geosList)
-		     $.getJSON("https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/states.geojson", function(states_map) {
-			    	//var data = JSON.parse(data)
-			    	console.log(states_map)
-			    	console.log(geosList.states["IA"])
-			    	//matching function - if state in data, colour it...
-			    	states_map.features.forEach(function(feature){
-			    		var str = feature.properties.STUSPS
-			    		var location = Object.keys(geosList.states).indexOf(str)
-			    		if (Object.keys(geosList.states).indexOf(str) >= 0) {
-						    feature.colour = "red"
-						    feature.url = geosList.states[Object.keys(geosList.states)[location]] //need to allow for multiple...
-						} else {
-							feature.colour = "#6CBDAE"
-							feature.url ="No notebook submitted yet!"
-						}
-			    	})
-		    	states.addData(states_map);	
-			    })
-
-		    $.getJSON("https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/cds.geojson", function(cds_map) {
-		    			//var data = JSON.parse(data)
-				        console.log(cds_map)
-				        cds_map.features.forEach(function(feature){
-				    		var str = feature.properties.GEOID
-				    		var location = Object.keys(geosList.cds).indexOf(str)
-
-				    		
-				    		if (location >= 0) {
-							    feature.colour = "red"
-							    feature.url = geosList.cds[Object.keys(geosList.cds)[location]] //need to allow for multiple...
-							} else {
-								feature.colour = "#6CBDAE"
-								feature.url ="No notebook submitted yet!"
-							}
-				    	})
-				        cds.addData(cds_map);
-					});
-
-
-		  }).catch(err => {
-		    console.log('Error');
-		    console.error(err);
-		  });
-
-
-   
+	    console.log(data);
+	    gFormData=data
+	    geosList = {"states":{},"cds":{}, "hucs":{}, "counties": {}, "zips":{}}
+	    	gFormData.data.forEach(function(d){
+	    		// parse county, watershed, and congressional district labels
+	    		//d.whichdistrict in the form of Iowa-01
+	    		//d.whichcounty in the form of Iowa-Cedar
+	    		//d.whichwatershed in the form of...State-Name ??? should probably just do 12 digit code....
+	    		c = d.whichdistrict.split("-") //assumes Iowa-01, Wyoming-00, etc.
+	    		if (c.length > 1){
+	    			s = fipsLookup[c[0]] //state code e.g. 56
+	    			geoid = s+c[1]
+	    			d.whichdistrict=geoid //geoid = congressional district four digit code e.g. 5600 = Wyoming-00
+	    		}
+	    		c = d.whichcounty.split("-")
+	    		if (c.length > 1){
+	    			s = fipsLookup[c[0]] //state code e.g. 17 (Iowa)
+	    			id = s+"-"+c[1]
+	    			d.whichcounty = id
+	    		}
+	    		geosList.states[d.whichstate] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Report</a>"
+	    		geosList.cds[d.whichdistrict] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Report</a>"
+	    		geosList.hucs[d.whichwatershed] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Report</a>"
+	    		geosList.counties[d.whichcounty] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Report</a>"
+	    		geosList.zips[d.whichzipcode] = "<a href="+d.pleaseuploadyournotebooksavedasapdf+" target='_blank'>Report</a>"
+			})
+	    omnivore.topojson('https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/cb_2013_us_cd113_500k.json', null, cds)
+	    omnivore.topojson('https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/cb_2018_us_state_500k.json', null, states)
+	    omnivore.topojson('https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/tl_2020_us_county.json', null, counties)
+	    omnivore.topojson('https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/hucs10.json', null, hucs)
+	    //watersheds
+	    omnivore.topojson('https://raw.githubusercontent.com/edgi-govdata-archiving/ECHO-Geo/main/zips.json', null, zips) // still a large file, may need to further reduce?
+	}).catch(err => {
+	    console.log('Error');
+	    console.error(err);
+	});
 
 
 
+
+	// Create toggle for map
     var overlays = {
+    	"States": states,
 	    "Congressional Districts": cds,
-	    "States": states
+	    "Counties": counties,
+	    "Watersheds": hucs,
+	    "Zip Codes": zips
 	};
-
-	L.control.layers(null, overlays, {"collapsed": false}).addTo(mymap);
+	L.control.layers(overlays, null, {"collapsed": false}).addTo(map);
 
 
 </script>
-
-
 
 </body>
 </html>
